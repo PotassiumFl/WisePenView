@@ -7,4 +7,8 @@ export {
   normalizeCommentsSidebarWidth,
 } from './resize';
 
-export type { WisePenCommentAuthorInfo, WisePenSidebarThread } from './index.type';
+export type {
+  WisePenCommentAuthorInfo,
+  WisePenSidebarCommentReaction,
+  WisePenSidebarThread,
+} from './index.type';

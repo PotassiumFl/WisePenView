@@ -15,6 +15,8 @@ import type {
   ResourceGroupGrantedActionsApiResponse,
   ResourceInlineCommentApiResponse,
   ResourceInlineCommentItemApiResponse,
+  ResourceInlineCommentItemReactionApiResponse,
+  ResourceInlineCommentItemReactionGroupApiResponse,
   ResourceItemApiResponse,
   ResourceListPageApiResponse,
   ResourceSpecifiedUserGrantedActionsApiResponse,
@@ -38,6 +40,8 @@ import type {
   CreateInlineCommentRequest,
   GetUserResourcesRequest,
   ResourceInlineCommentAuthorInfo,
+  ResourceInlineCommentItemReaction,
+  ResourceInlineCommentItemReactionGroup,
   ResourceInlineCommentThread,
   ResourceListPage,
   ResourcePermissionActionOption,
@@ -557,6 +561,60 @@ function inferInlineCommentAnchorKind(
   return 'text-range';
 }
 
+function mapInlineCommentReactionGroups(
+  rawGroups: ResourceInlineCommentItemReactionGroupApiResponse[] | null | undefined
+): ResourceInlineCommentItemReactionGroup[] {
+  return (rawGroups ?? []).map((group) => {
+    const emojiId = normalizeInlineCommentString(group.emojiId);
+    return {
+      emojiId,
+      count: typeof group.count === 'number' ? group.count : 0,
+      reactedByCurrentUser: group.reactedByCurrentUser ?? false,
+      users: (group.users ?? [])
+        .map((user) => mapInlineCommentAuthorInfo(user))
+        .filter((user): user is ResourceInlineCommentAuthorInfo => Boolean(user)),
+    };
+  });
+}
+
+function mapInlineCommentItemReactions(
+  reactions: Record<string, ResourceInlineCommentItemReactionApiResponse | null | undefined>,
+  groups: ResourceInlineCommentItemReactionGroup[]
+): ResourceInlineCommentItemReaction[] {
+  const userInfoById = new Map<string, ResourceInlineCommentAuthorInfo>();
+  for (const group of groups) {
+    for (const user of group.users) {
+      const userId = normalizeInlineCommentString(user.id);
+      if (userId && !userInfoById.has(userId)) {
+        userInfoById.set(userId, user);
+      }
+    }
+  }
+
+  return Object.entries(reactions)
+    .map(([rawUserId, reaction]): ResourceInlineCommentItemReaction | null => {
+      const userId = normalizeInlineCommentString(rawUserId);
+      const emojiId = normalizeInlineCommentString(reaction?.emojiId);
+      if (!userId || !emojiId) {
+        return null;
+      }
+      const userInfo = userInfoById.get(userId);
+      return {
+        userId,
+        emojiId,
+        userInfo: userInfo
+          ? {
+              ...userInfo,
+              id: userInfo.id || userId,
+            }
+          : undefined,
+        createTime: normalizeInlineCommentString(reaction?.createTime) || undefined,
+        updateTime: normalizeInlineCommentString(reaction?.updateTime) || undefined,
+      };
+    })
+    .filter((reaction): reaction is ResourceInlineCommentItemReaction => Boolean(reaction));
+}
+
 const mapInlineCommentThreadFromApi = (
   raw: ResourceInlineCommentApiResponse
 ): ResourceInlineCommentThread => {
@@ -585,16 +643,21 @@ const mapInlineCommentThreadFromApi = (
       anchorPayload,
       kind: inferInlineCommentAnchorKind(anchorPayload),
     },
-    items: (raw.items ?? []).map((item: ResourceInlineCommentItemApiResponse) => ({
-      itemId: normalizeInlineCommentString(item.itemId),
-      authorId: normalizeInlineCommentString(item.authorId),
-      authorInfo: mapInlineCommentAuthorInfo(item.authorInfo),
-      content: item.content ?? '',
-      imageUrls: item.imageUrls ?? [],
-      mentionUserIds: item.mentionUserIds ?? [],
-      createTime: normalizeInlineCommentString(item.createTime) || undefined,
-      updateTime: normalizeInlineCommentString(item.updateTime) || undefined,
-    })),
+    items: (raw.items ?? []).map((item: ResourceInlineCommentItemApiResponse) => {
+      const reactionGroups = mapInlineCommentReactionGroups(item.reactionGroups);
+      return {
+        itemId: normalizeInlineCommentString(item.itemId),
+        authorId: normalizeInlineCommentString(item.authorId),
+        authorInfo: mapInlineCommentAuthorInfo(item.authorInfo),
+        content: item.content ?? '',
+        imageUrls: item.imageUrls ?? [],
+        mentionUserIds: item.mentionUserIds ?? [],
+        reactions: mapInlineCommentItemReactions(item.reactions ?? {}, reactionGroups),
+        reactionGroups,
+        createTime: normalizeInlineCommentString(item.createTime) || undefined,
+        updateTime: normalizeInlineCommentString(item.updateTime) || undefined,
+      };
+    }),
   };
 };
 

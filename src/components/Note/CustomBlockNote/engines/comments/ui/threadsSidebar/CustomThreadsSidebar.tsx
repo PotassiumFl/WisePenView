@@ -40,6 +40,7 @@ type CustomThreadsSidebarProps = {
   canReopenThread?: (thread: ThreadData) => boolean;
   actionsEnabled?: boolean;
   resolveCommentAuthor: (comment: CommentData) => WisePenCommentAuthorInfo;
+  resolveReactionUser: (userId: string, comment: CommentData) => WisePenCommentAuthorInfo;
 };
 
 function isDeletedComment(comment: CommentData): boolean {
@@ -50,7 +51,8 @@ function mapThreadToSidebarThread(
   thread: ThreadData,
   referenceText: string,
   currentUserId: string,
-  resolveCommentAuthor: CustomThreadsSidebarProps['resolveCommentAuthor']
+  resolveCommentAuthor: CustomThreadsSidebarProps['resolveCommentAuthor'],
+  resolveReactionUser: CustomThreadsSidebarProps['resolveReactionUser']
 ): WisePenSidebarThread {
   return {
     id: thread.id,
@@ -62,6 +64,14 @@ function mapThreadToSidebarThread(
       createdAt: comment.createdAt,
       updatedAt: comment.updatedAt,
       content: extractPlainTextFromCommentBody(comment.body),
+      reactions: (comment.reactions ?? []).flatMap((reaction) =>
+        reaction.userIds.map((userId) => ({
+          id: `${comment.id}:${reaction.emoji}:${userId}`,
+          emojiId: reaction.emoji,
+          user: resolveReactionUser(userId, comment),
+          reactedByCurrentUser: userId === currentUserId,
+        }))
+      ),
       deleted: isDeletedComment(comment),
       canUpdate: comment.userId === currentUserId,
     })),
@@ -81,6 +91,7 @@ export function CustomThreadsSidebar({
   canReopenThread,
   actionsEnabled = false,
   resolveCommentAuthor,
+  resolveReactionUser,
 }: CustomThreadsSidebarProps) {
   const comments = useExtension(CommentsExtension);
   const { selectedThreadId, threadPositions } = useExtensionState(CommentsExtension, { editor });
@@ -141,7 +152,8 @@ export function CustomThreadsSidebar({
       thread,
       referenceText,
       visibilityScope.currentUserId,
-      resolveCommentAuthor
+      resolveCommentAuthor,
+      resolveReactionUser
     )
   );
 
@@ -203,6 +215,41 @@ export function CustomThreadsSidebar({
     }
   });
 
+  const handleSetCommentReaction = useMemoizedFn(
+    async (threadId: string, commentId: string, emojiId: string) => {
+      try {
+        await comments.threadStore.addReaction({
+          threadId,
+          commentId,
+          emoji: emojiId,
+        });
+      } catch (error) {
+        toast.danger(error instanceof Error ? error.message : '表情回复失败');
+      }
+    }
+  );
+
+  const handleDeleteCommentReaction = useMemoizedFn(async (threadId: string, commentId: string) => {
+    const sourceComment = threadDataById
+      .get(threadId)
+      ?.comments.find((comment) => comment.id === commentId);
+    const currentReaction = sourceComment?.reactions.find((reaction) =>
+      reaction.userIds.includes(visibilityScope.currentUserId)
+    );
+    if (!currentReaction) {
+      return;
+    }
+    try {
+      await comments.threadStore.deleteReaction({
+        threadId,
+        commentId,
+        emoji: currentReaction.emoji,
+      });
+    } catch (error) {
+      toast.danger(error instanceof Error ? error.message : '取消表情回复失败');
+    }
+  });
+
   return (
     <WisePenCommentsSidebar
       threads={sidebarThreads}
@@ -217,6 +264,8 @@ export function CustomThreadsSidebar({
       onSelectThread={handleSelectThread}
       onUpdateComment={handleUpdateComment}
       onDeleteComment={handleDeleteComment}
+      onSetCommentReaction={handleSetCommentReaction}
+      onDeleteCommentReaction={handleDeleteCommentReaction}
       onResolveThread={handleResolveThread}
       onReopenThread={handleReopenThread}
       onReplyThread={handleReplyThread}

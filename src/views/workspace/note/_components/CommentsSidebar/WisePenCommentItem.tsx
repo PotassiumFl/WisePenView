@@ -9,6 +9,7 @@ import type {
   WisePenSidebarComment,
   WisePenSidebarThread,
 } from './index.type';
+import { InlineCommentEmojiPicker } from './InlineCommentEmojiPicker';
 import styles from './style.module.less';
 
 function CommentAvatar({ author }: { author: WisePenCommentAuthorInfo }) {
@@ -27,20 +28,31 @@ export function WisePenCommentItem({
   actionsEnabled,
   onUpdateComment,
   onDeleteComment,
+  onSetCommentReaction,
+  onDeleteCommentReaction,
 }: {
   thread: WisePenSidebarThread;
   comment: WisePenSidebarComment;
   actionsEnabled: boolean;
   onUpdateComment?: WisePenCommentsSidebarProps['onUpdateComment'];
   onDeleteComment?: WisePenCommentsSidebarProps['onDeleteComment'];
+  onSetCommentReaction?: WisePenCommentsSidebarProps['onSetCommentReaction'];
+  onDeleteCommentReaction?: WisePenCommentsSidebarProps['onDeleteCommentReaction'];
 }) {
   const [editing, setEditing] = useState(false);
   const [draftContent, setDraftContent] = useState(comment.content);
   const [submitting, setSubmitting] = useState(false);
+  const [reactionSubmitting, setReactionSubmitting] = useState(false);
   const trimmedDraft = draftContent.trim();
   const canUpdate =
     actionsEnabled && !comment.deleted && Boolean(comment.canUpdate) && Boolean(onUpdateComment);
   const canDelete = actionsEnabled && !comment.deleted && Boolean(onDeleteComment);
+  const canReact =
+    actionsEnabled &&
+    !comment.deleted &&
+    Boolean(onSetCommentReaction) &&
+    Boolean(onDeleteCommentReaction);
+  const currentUserReaction = comment.reactions.find((reaction) => reaction.reactedByCurrentUser);
 
   const handleStartEdit = () => {
     setDraftContent(comment.content);
@@ -59,6 +71,34 @@ export function WisePenCommentItem({
       // 错误提示由上层领域组件统一处理，这里保留编辑态方便用户重试。
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleSelectReaction = async (emojiId: string) => {
+    if (reactionSubmitting || !onSetCommentReaction || !onDeleteCommentReaction) {
+      return;
+    }
+    try {
+      setReactionSubmitting(true);
+      if (currentUserReaction?.emojiId === emojiId) {
+        await onDeleteCommentReaction(thread.id, comment.id);
+        return;
+      }
+      await onSetCommentReaction(thread.id, comment.id, emojiId);
+    } finally {
+      setReactionSubmitting(false);
+    }
+  };
+
+  const handleToggleOwnReaction = async () => {
+    if (!currentUserReaction || reactionSubmitting || !onDeleteCommentReaction) {
+      return;
+    }
+    try {
+      setReactionSubmitting(true);
+      await onDeleteCommentReaction(thread.id, comment.id);
+    } finally {
+      setReactionSubmitting(false);
     }
   };
 
@@ -105,11 +145,67 @@ export function WisePenCommentItem({
             </div>
           </div>
         ) : (
-          <div className={styles.commentBody}>{comment.content || '空批注'}</div>
+          <>
+            <div className={styles.commentBody}>{comment.content || '空批注'}</div>
+            {comment.reactions.length > 0 ? (
+              <div className={styles.commentReactionList}>
+                {comment.reactions.map((reaction) => {
+                  const canToggleOwn = canReact && reaction.reactedByCurrentUser;
+                  if (canToggleOwn) {
+                    return (
+                      <button
+                        key={reaction.id}
+                        type="button"
+                        className={`${styles.commentReaction} ${styles.commentReactionActive} ${styles.commentReactionButton}`}
+                        title="取消表情回复"
+                        aria-label="取消表情回复"
+                        disabled={reactionSubmitting}
+                        data-ignore-thread-select
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                        }}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          void handleToggleOwnReaction();
+                        }}
+                      >
+                        <span className={styles.commentReactionEmoji}>{reaction.emojiId}</span>
+                        <span className={styles.commentReactionUser}>
+                          {reaction.user.name || reaction.user.id || '未知用户'}
+                        </span>
+                      </button>
+                    );
+                  }
+                  return (
+                    <span
+                      key={reaction.id}
+                      className={`${styles.commentReaction}${reaction.reactedByCurrentUser ? ` ${styles.commentReactionActive}` : ''}`}
+                    >
+                      <span className={styles.commentReactionEmoji}>{reaction.emojiId}</span>
+                      <span className={styles.commentReactionUser}>
+                        {reaction.user.name || reaction.user.id || '未知用户'}
+                      </span>
+                    </span>
+                  );
+                })}
+              </div>
+            ) : null}
+          </>
         )}
       </div>
-      {canUpdate || canDelete ? (
+      {canReact || canUpdate || canDelete ? (
         <div className={styles.commentQuickActions}>
+          {canReact ? (
+            <InlineCommentEmojiPicker
+              selectedEmojiId={currentUserReaction?.emojiId}
+              disabled={reactionSubmitting}
+              onSelect={(emojiId) => {
+                void handleSelectReaction(emojiId);
+              }}
+            />
+          ) : null}
           {canUpdate ? (
             <Tooltip delay={0} closeDelay={0}>
               <Tooltip.Trigger>

@@ -18,6 +18,8 @@ export function WisePenThreadCard({
   onSelectThread,
   onUpdateComment,
   onDeleteComment,
+  onSetCommentReaction,
+  onDeleteCommentReaction,
   onResolveThread,
   onReopenThread,
   onReplyThread,
@@ -31,6 +33,8 @@ export function WisePenThreadCard({
   onSelectThread?: WisePenCommentsSidebarProps['onSelectThread'];
   onUpdateComment?: WisePenCommentsSidebarProps['onUpdateComment'];
   onDeleteComment?: WisePenCommentsSidebarProps['onDeleteComment'];
+  onSetCommentReaction?: WisePenCommentsSidebarProps['onSetCommentReaction'];
+  onDeleteCommentReaction?: WisePenCommentsSidebarProps['onDeleteCommentReaction'];
   onResolveThread?: WisePenCommentsSidebarProps['onResolveThread'];
   onReopenThread?: WisePenCommentsSidebarProps['onReopenThread'];
   onReplyThread?: WisePenCommentsSidebarProps['onReplyThread'];
@@ -130,6 +134,8 @@ export function WisePenThreadCard({
               actionsEnabled={actionsEnabled}
               onUpdateComment={onUpdateComment}
               onDeleteComment={onDeleteComment}
+              onSetCommentReaction={onSetCommentReaction}
+              onDeleteCommentReaction={onDeleteCommentReaction}
             />
           </Fragment>
         ))}

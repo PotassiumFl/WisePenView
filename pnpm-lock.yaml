@@ -29,6 +29,12 @@ importers:
       '@embedpdf/react-pdf-viewer':
         specifier: ^2.14.0
         version: 2.14.4(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.4(@typescript-eslint/types@8.62.1))(vue@3.5.39(typescript@5.9.3))
+      '@emoji-mart/data':
+        specifier: ^1.2.1
+        version: 1.2.1
+      '@emoji-mart/react':
+        specifier: ^1.1.1
+        version: 1.1.1(emoji-mart@5.6.0)(react@19.2.7)
       '@heroui/react':
         specifier: ^3.1.0
         version: 3.2.1(@react-spectrum/provider@3.11.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss@4.3.2)
@@ -68,6 +74,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      emoji-mart:
+        specifier: ^5.6.0
+        version: 5.6.0
       i18next:
         specifier: ^26.0.10
         version: 26.3.4(typescript@5.9.3)
@@ -809,6 +818,12 @@ packages:
 
   '@emoji-mart/data@1.2.1':
     resolution: {integrity: sha512-no2pQMWiBy6gpBEiqGeU77/bFejDqUTRY7KX+0+iur13op3bqUsXdnwoZs6Xb1zbv0gAj5VvS1PWoUUckSr5Dw==}
+
+  '@emoji-mart/react@1.1.1':
+    resolution: {integrity: sha512-NMlFNeWgv1//uPsvLxvGQoIerPuVdXwK/EUek8OOkJ6wVOWPUizRBJU0hDqWZCOROVpfBgCemaC3m6jDOXi03g==}
+    peerDependencies:
+      emoji-mart: ^5.2
+      react: ^16.8 || ^17 || ^18
 
   '@esbuild/aix-ppc64@0.28.1':
     resolution: {integrity: sha512-Svl7tq8k/08+p6CXPpRjQ1fKX+1odH/BQbb48fV6fj3CWHhsoIOoY87w1oHXm0qEpkIK3ZfVgp0hed3XBXzXMQ==}
@@ -5000,6 +5015,11 @@ snapshots:
       vue: 3.5.39(typescript@5.9.3)
 
   '@emoji-mart/data@1.2.1': {}
+
+  '@emoji-mart/react@1.1.1(emoji-mart@5.6.0)(react@19.2.7)':
+    dependencies:
+      emoji-mart: 5.6.0
+      react: 19.2.7
 
   '@esbuild/aix-ppc64@0.28.1':
     optional: true

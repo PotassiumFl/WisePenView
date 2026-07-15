@@ -14,6 +14,8 @@ export function WisePenCommentsSidebar({
   onSelectThread,
   onUpdateComment,
   onDeleteComment,
+  onSetCommentReaction,
+  onDeleteCommentReaction,
   onResolveThread,
   onReopenThread,
   onReplyThread,
@@ -37,6 +39,8 @@ export function WisePenCommentsSidebar({
             onSelectThread={onSelectThread}
             onUpdateComment={onUpdateComment}
             onDeleteComment={onDeleteComment}
+            onSetCommentReaction={onSetCommentReaction}
+            onDeleteCommentReaction={onDeleteCommentReaction}
             onResolveThread={onResolveThread}
             onReopenThread={onReopenThread}
             onReplyThread={onReplyThread}

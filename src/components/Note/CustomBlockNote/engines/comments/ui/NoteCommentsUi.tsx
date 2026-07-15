@@ -61,6 +61,15 @@ function readCommentAuthorInfo(comment: CommentData): RawCommentAuthorInfo | und
   return metadata?.authorInfo;
 }
 
+function readReactionUserInfo(
+  comment: CommentData,
+  userId: string
+): RawCommentAuthorInfo | undefined {
+  const metadata = comment.metadata as
+    { reactionUserInfoById?: Record<string, RawCommentAuthorInfo | undefined> } | undefined;
+  return metadata?.reactionUserInfoById?.[userId];
+}
+
 type NoteCommentsUiProps = {
   editor: CustomBlockNoteEditor;
   doc: Doc;
@@ -166,6 +175,64 @@ export function NoteCommentsUi({
     };
   });
 
+  const resolveReactionUser = useMemoizedFn(
+    (userId: string, comment: CommentData): WisePenCommentAuthorInfo => {
+      const reactionUserInfo = readReactionUserInfo(comment, userId);
+      const metadataName = pickSafeDisplayName(
+        [
+          reactionUserInfo?.name,
+          reactionUserInfo?.nickname,
+          reactionUserInfo?.realName,
+          reactionUserInfo?.username,
+        ],
+        userId
+      );
+      const metadataAvatarUrl = normalizeAvatarUrl(
+        reactionUserInfo?.avatarUrl || reactionUserInfo?.avatar
+      );
+      const isCurrentUser =
+        userId === commentUserId || (userId ? isPlaceholderCommentUserId(userId) : false);
+
+      if (isCurrentUser) {
+        return {
+          id: commentUserId,
+          name: pickSafeDisplayName([commentUsername], commentUserId) || CURRENT_COMMENT_USER_NAME,
+          avatarUrl: commentAvatarUrl || metadataAvatarUrl,
+        };
+      }
+
+      const syncedUser = userId ? commentUsersYMap.get(userId) : undefined;
+      if (syncedUser) {
+        return {
+          id: userId,
+          name:
+            pickSafeDisplayName([syncedUser.username], userId) ||
+            metadataName ||
+            UNKNOWN_COMMENT_USER_NAME,
+          avatarUrl: syncedUser.avatarUrl || metadataAvatarUrl,
+        };
+      }
+
+      const knownUser = userId ? commentUsersById?.[userId] : undefined;
+      if (knownUser) {
+        return {
+          id: userId,
+          name:
+            pickSafeDisplayName([knownUser.name], userId) ||
+            metadataName ||
+            UNKNOWN_COMMENT_USER_NAME,
+          avatarUrl: normalizeAvatarUrl(knownUser.avatar) || metadataAvatarUrl,
+        };
+      }
+
+      return {
+        id: userId,
+        name: metadataName || UNKNOWN_COMMENT_USER_NAME,
+        avatarUrl: metadataAvatarUrl,
+      };
+    }
+  );
+
   useMount(() => {
     const handleTransaction = (transaction: Y.Transaction) => {
       if (isContentCommentYjsTransaction(transaction.origin)) {
@@ -208,6 +275,7 @@ export function NoteCommentsUi({
       canReopenThread={canReopenThread}
       actionsEnabled={false}
       resolveCommentAuthor={resolveCommentAuthor}
+      resolveReactionUser={resolveReactionUser}
     />
   );
   const sidebarPanel = !sidebarCollapsed ? (
@@ -223,6 +291,7 @@ export function NoteCommentsUi({
         maxCommentsBeforeCollapse={5}
         actionsEnabled={commentsWritable}
         resolveCommentAuthor={resolveCommentAuthor}
+        resolveReactionUser={resolveReactionUser}
       />
     </ResizableCommentsSidebar>
   ) : null;
